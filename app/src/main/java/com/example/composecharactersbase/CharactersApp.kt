@@ -1,5 +1,6 @@
 package com.example.composecharactersbase
 
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -35,39 +36,62 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import coil.compose.rememberAsyncImagePainter
+import kotlinx.coroutines.launch
+import retrofit2.http.GET
+import retrofit2.http.Path
+
+val idCharacter: Int = 0
+
+interface UserService {
+    @GET("/characters/{id}")
+    fun getCharacter(@Path("id") id: Int): Character
+}
+
+class CharactersRepository constructor(
+    private val characterService: UserService
+){
+    fun getCharacter(id: Int): Character{
+        return characterService.getCharacter(id)
+    }
+}
+
+class MainViewModel constructor(
+    savedStateHandle: SavedStateHandle,
+    characterRepository: CharactersRepository
+) : ViewModel() {
+    private val userId: String = savedStateHandle["uid"] ?:
+    throw IllegalArgumentException("Missing user ID")
+
+    private val _character = MutableLiveData<Character>()
+    val character = _character as LiveData<Character>
+
+    init {
+        viewModelScope.launch {
+            try {
+                val character = characterRepository.getCharacter(idCharacter)
+                _character.value = character
+            } catch (error: Exception) {
+                Log.e("MainViewModel", "Erro ao buscar personagem", error)
+            }
+        }
+    }
+}
 
 @Preview
 @Composable
 fun CharacterApp() {
-    // Função principal que inicia a tela do aplicativo.
-    // Aqui chamamos a tela que lista os personagens.
     CharacterListScreen()
 }
-
+//https://rickandmortyapi.com/api/episode/
 @Composable
 fun CharacterListScreen() {
-    // Lista de personagens mockados (dados fictícios para teste).
-    val characters = listOf(
-        CharacterMock(
-            name = "Rick Sanchez",
-            status = "Alive",
-            species = "Human",
-            imageUrl = "https://rickandmortyapi.com/api/character/avatar/1.jpeg"
-        ),
-        CharacterMock(
-            name = "Morty Smith",
-            status = "Alive",
-            species = "Human",
-            imageUrl = "https://rickandmortyapi.com/api/character/avatar/2.jpeg"
-        ),
-        CharacterMock(
-            name = "Summer Smith",
-            status = "Alive",
-            species = "Human",
-            imageUrl = "https://rickandmortyapi.com/api/character/avatar/3.jpeg"
-        )
-    )
+    val characters =
 
     // LazyColumn é uma lista otimizada para exibir grandes quantidades de dados.
     LazyColumn(
